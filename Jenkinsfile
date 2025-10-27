@@ -1,7 +1,9 @@
 pipeline {
-    agent any
+    agent {
+        label 'docker-agent-vm'
+    }
     environment {
-        DOCKERHUB_USER = 'vishwacloudlab'
+        DOCKERHUB_USER = 'Akhil'
         IMAGE_NAME = 'jenkins-docker-lab'
     }
     stages {
@@ -17,7 +19,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t $DOCKERHUB_USER/$IMAGE_NAME:latest .'
+                    sh 'docker build -t $DOCKERHUB_USER/$IMAGE_NAME:latest python-app'
                 }
             }
         }
