@@ -23,6 +23,16 @@ pipeline {
                 }
             }
         }
+        stage('Trivy Security Scan') {
+            steps {
+                script {
+                    // Run Trivy to scan the built image
+                    sh '''
+                        echo "Running Trivy security scan..."
+                        trivy image --no-progress --severity HIGH,CRITICAL $DOCKERHUB_USER/$IMAGE_NAME:latest
+                  
+                }
+            }
     }
  
     post {
