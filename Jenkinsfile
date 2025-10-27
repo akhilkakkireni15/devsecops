@@ -2,6 +2,10 @@ pipeline {
     agent {
         label 'ak-docker-agent'
     }
+    triggers {
+    pollSCM('H/5 * * * *') // checks every 5 mins, or
+    // OR use GitHub webhook instead (recommended)
+  }
 
     environment {
         DOCKERHUB_USER = 'akhil' // must be lowercase
