@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'docker-agent-vm'
+        label 'ak-docker-agent'
     }
     environment {
         DOCKERHUB_USER = 'Akhil'
