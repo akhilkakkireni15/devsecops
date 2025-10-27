@@ -4,8 +4,8 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_USER = 'Akhil'
-        IMAGE_NAME = 'jenkins-docker-lab'
+        DOCKERHUB_USER = 'akhil' // must be lowercase
+        IMAGE_NAME     = 'jenkins-docker-lab'
     }
 
     stages {
@@ -31,10 +31,19 @@ pipeline {
         stage('Trivy Security Scan') {
             steps {
                 script {
-                    // Run Trivy to scan the built image
+                    // Run Trivy scan using Docker
                     sh '''
-                        echo "Running Trivy security scan..."
-                        trivy image --no-progress --severity HIGH,CRITICAL $DOCKERHUB_USER/$IMAGE_NAME:latest
+                        set -e
+                        echo "Updating Trivy image..."
+                        docker pull aquasec/trivy:latest
+
+                        echo "Running Trivy container scan..."
+                        docker run --rm \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            -v $HOME/.cache/trivy:/root/.cache/ \
+                            aquasec/trivy:latest image --no-progress \
+                            --severity HIGH,CRITICAL \
+                            $DOCKERHUB_USER/$IMAGE_NAME:latest
                     '''
                 }
             }
