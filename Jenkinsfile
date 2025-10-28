@@ -10,8 +10,41 @@ pipeline {
     environment {
         DOCKERHUB_USER = 'akhil' // must be lowercase
         IMAGE_NAME     = 'jenkins-docker-lab'
+        SONARQUBE = 'SonarCloud'
+        SONAR_TOKEN = credentials('akhil-sonar')
     }
 stages {
+          stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+                stage('SonarQube Analysis') {
+
+            steps {
+
+                withSonarQubeEnv('SonarCloud') {
+
+                    sh '''
+
+                        # Ensure we're in the root where sonar-project.properties exists
+
+                        cd ${WORKSPACE}
+
+                        sonar-scanner \
+
+                          -Dsonar.projectBaseDir=python-app \
+
+                          -Dsonar.login=$SONAR_TOKEN
+
+                    '''
+
+                }
+
+            }
+
+        }
+ 
         stage('Clean up image and container') {
             steps {
                 script {
