@@ -11,49 +11,40 @@ pipeline {
         DOCKERHUB_USER = 'akhil' // must be lowercase
         IMAGE_NAME     = 'jenkins-docker-lab'
     }
-
-    stages {
+stages {
         stage('Clean up image and container') {
             steps {
                 script {
-                    // Remove existing container and image if any
-                    sh 'docker rm jenkins_app -f || true'
+               //     sh 'git clone git@github.com:Vishwanathms/t7.14-py-jenkins.git'
+                    sh 'docker rm  jenkins_app -f || true'
                     sh 'docker image rmi $DOCKERHUB_USER/$IMAGE_NAME:latest || true'
                 }
-            }
+            }  
         }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image
                     sh 'docker build -t $DOCKERHUB_USER/$IMAGE_NAME:latest python-app'
                 }
             }
         }
-
-        stage('Trivy Security Scan') {
+        stage('Scan Docker Image with Trivy') {
             steps {
-                script {
-                    // Run Trivy scan using Docker
-                    sh '''
-                        set -e
-                        echo "Updating Trivy image..."
-                        docker pull aquasec/trivy:latest
-
-                        echo "Running Trivy container scan..."
-                        docker run --rm \
-                            -v /var/run/docker.sock:/var/run/docker.sock \
-                            -v $HOME/.cache/trivy:/root/.cache/ \
-                            aquasec/trivy:latest image --no-progress \
-                            --severity HIGH,CRITICAL \
-                            $DOCKERHUB_USER/$IMAGE_NAME:latest
-                    '''
-                }
+                // Scan and save report
+                sh '''
+                  mkdir -p trivy-reports
+                  trivy image --no-progress --exit-code 0 --format table -o trivy-reports/report.txt $DOCKERHUB_USER/$IMAGE_NAME
+                  cat trivy-reports/report.txt
+                '''
+            }
+        }
+ 
+        stage('Archive Trivy Report') {
+            steps {
+                archiveArtifacts artifacts: 'trivy-reports/report.txt', fingerprint: true
             }
         }
     }
-
     post {
         success {
             echo 'Pipeline completed successfully!'
