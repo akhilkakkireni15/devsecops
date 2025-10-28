@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'akhil-ubuntu-a'
+        label 'akhil-security-agent'
     }
     triggers {
     pollSCM('H/5 * * * *') // checks every 5 mins, or
