@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'ak-docker-agent'
+        label 'akhil-ubuntu-a'
     }
     triggers {
     pollSCM('H/5 * * * *') // checks every 5 mins, or
