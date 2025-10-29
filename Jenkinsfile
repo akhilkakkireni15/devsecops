@@ -3,81 +3,70 @@ pipeline {
         label 'akhil-security-agent'
     }
     triggers {
-    pollSCM('H/5 * * * *') // checks every 5 mins, or
-    // OR use GitHub webhook instead (recommended)
-  }
+        pollSCM('H/3 * * * *') // checks every 3 mins, or
+        // OR use GitHub webhook instead (recommended)
+    }
 
     environment {
-        DOCKERHUB_USER = 'akhil' // must be lowercase
-        IMAGE_NAME     = 'jenkins-docker-lab'
+        DOCKERHUB_USER = 'akhil'
+        IMAGE_NAME = 'jenkins-docker-lab'
         SONARQUBE = 'SonarCloud'
-        SONAR_TOKEN = credentials('akhil-sonar')
+        SONAR_TOKEN = credentials('vish-sonarcloud-token')
+
     }
-stages {
-          stage('Checkout') {
+    stages {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-                stage('SonarQube Analysis') {
-
+        stage('Python Setup & Test with Coverage') {
             steps {
+                dir('python_app') {
+                    sh '''#!/bin/bash
+                        set -euxo pipefail
+                        rm -rf venv
+                        python3 -m venv venv
+                        ./venv/bin/pip install --upgrade pip
+                        ./venv/bin/pip install -r requirements.txt
+                        ./venv/bin/python -m pytest tests/ --maxfail=1 --disable-warnings -q \
+                            --cov=. --cov-report=xml:../coverage.xml
+                    '''               
+                }
+            }
+        }
 
-                withSonarQubeEnv('SonarCloud') {
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv(credentialsId: 'vish-sonarcloud-token', installationName: 'vish-sonarqube') {
+                    sh '''#!/bin/bash
+                        set -eux
+                        echo "=== SonarQube installation ==="
+                        export SONAR_SCANNER_VERSION=7.2.0.5079
+                        export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux-x64
+                        curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-$SONAR_SCANNER_VERSION-linux-x64.zip
+                        unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/
+                        export PATH=$SONAR_SCANNER_HOME/bin:$PATH
 
-                    sh '''
-
-                        # Ensure we're in the root where sonar-project.properties exists
-
-                        cd ${WORKSPACE}
-
+                        echo "=== Running SonarQube Scanner ==="
                         sonar-scanner \
-
-                          -Dsonar.projectBaseDir=python-app \
-
-                          -Dsonar.login=$SONAR_TOKEN
-
-                    '''
-
-                }
-
-            }
-
-        }
- 
-        stage('Clean up image and container') {
-            steps {
-                script {
-               //     sh 'git clone git@github.com:Vishwanathms/t7.14-py-jenkins.git'
-                    sh 'docker rm  jenkins_app -f || true'
-                    sh 'docker image rmi $DOCKERHUB_USER/$IMAGE_NAME:latest || true'
-                }
-            }  
-        }
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    sh 'docker build -t $DOCKERHUB_USER/$IMAGE_NAME:latest python-app'
+                        -Dsonar.organization="vcltestorg01" \
+                        -Dsonar.projectKey="vcltestorg01_vcltestorg01" \
+                        -Dsonar.host.url=https://sonarcloud.io \
+                        -Dsonar.sources=. \
+                        -Dsonar.python.coverage.reportPaths=coverage.xml \
+                        -Dsonar.c.file.suffixes=- \
+                        -Dsonar.cpp.file.suffixes=- \
+                        -Dsonar.objc.file.suffixes=- \
+                        -Dsonar.login=$SONAR_TOKEN \
+                        -Dsonar.exclusions=**/venv/**,**/__pycache__/**,**/tests/** \
+                        '''
                 }
             }
         }
-        stage('Scan Docker Image with Trivy') {
-            steps {
-                // Scan and save report
-                sh '''
-                  mkdir -p trivy-reports
-                  trivy image --no-progress --exit-code 0 --format table -o trivy-reports/report.txt $DOCKERHUB_USER/$IMAGE_NAME
-                  cat trivy-reports/report.txt
-                '''
-            }
-        }
- 
-        stage('Archive Trivy Report') {
-            steps {
-                archiveArtifacts artifacts: 'trivy-reports/report.txt', fingerprint: true
-            }
-        }
+
     }
+
     post {
         success {
             echo 'Pipeline completed successfully!'
